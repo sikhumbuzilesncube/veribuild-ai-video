@@ -10,36 +10,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing image or script' }, { status: 400 });
     }
 
-    // --- 1. GENERATE VOICE USING ELEVENLABS ---
-    const voiceId = '21m00Tcm4TlvDq8ikWAM'; // Default voice. We will change this to your Ndebele voice later.
-    
-    const voiceRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': process.env.ELEVENLABS_API_KEY as string,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        text: scriptText,
-        model_id: 'eleven_multilingual_v2', 
-      }),
-    });
-
-    if (!voiceRes.ok) throw new Error('ElevenLabs voice generation failed');
-    const voiceBlob = await voiceRes.blob();
-
-    // --- 2. UPLOAD VOICE TO D-ID ---
-    const audioFormData = new FormData();
-    audioFormData.append('audio', voiceBlob, 'voice.mp3');
-
-    const didAudioRes = await fetch('https://api.d-id.com/audios', {
-      method: 'POST',
-      headers: { Authorization: `Basic ${process.env.DID_API_KEY}` },
-      body: audioFormData,
-    });
-    const didAudioData = await didAudioRes.json();
-    
-    // --- 3. UPLOAD IMAGE TO D-ID ---
+    // --- 1. UPLOAD IMAGE TO D-ID ---
     const imageFormData = new FormData();
     imageFormData.append('image', image);
 
@@ -48,9 +19,14 @@ export async function POST(req: Request) {
       headers: { Authorization: `Basic ${process.env.DID_API_KEY}` },
       body: imageFormData,
     });
+    
     const didImageData = await didImageRes.json();
 
-    // --- 4. TELL D-ID TO MAKE THE VIDEO ---
+    if (!didImageRes.ok) {
+      throw new Error(didImageData.description || 'Image upload failed. Check D-ID credits/keys.');
+    }
+
+    // --- 2. TELL D-ID TO MAKE THE VIDEO (Using D-ID's built-in text-to-speech) ---
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
@@ -60,8 +36,12 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         source_url: didImageData.url,
         script: {
-          type: 'audio',
-          audio_url: didAudioData.url,
+          type: 'text', 
+          input: scriptText,
+          provider: {
+            type: 'microsoft',
+            voice_id: 'en-US-JennyNeural' 
+          }
         },
       }),
     });
@@ -69,10 +49,11 @@ export async function POST(req: Request) {
     const didVideoData = await didVideoRes.json();
     if (!didVideoRes.ok) throw new Error(didVideoData.description || 'D-ID Video Error');
 
-    // --- 5. WAIT FOR VIDEO TO FINISH ---
+    // --- 3. WAIT FOR VIDEO TO FINISH ---
     const talkId = didVideoData.id;
     let videoUrl = '';
     
+    // We check the status every 3 seconds
     while (true) {
       await new Promise(resolve => setTimeout(resolve, 3000)); 
       
@@ -85,13 +66,14 @@ export async function POST(req: Request) {
         videoUrl = statusData.result_url;
         break;
       } else if (statusData.status === 'error') {
-        throw new Error('Video generation failed');
+        throw new Error('Video generation failed during processing.');
       }
     }
 
     return NextResponse.json({ url: videoUrl });
 
   } catch (error: any) {
+    // This will send the specific error back to the app screen
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-        }
+              }
