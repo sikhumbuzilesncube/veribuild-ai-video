@@ -10,11 +10,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing image or script' }, { status: 400 });
     }
 
-    // Clean the API key (removes any accidental spaces or "Basic " prefixes)
     const rawKey = (process.env.DID_API_KEY || '').trim().replace(/^Basic\s+/i, '');
     const authHeader = `Basic ${Buffer.from(rawKey).toString('base64')}`;
 
-    // --- 1. UPLOAD IMAGE TO D-ID ---
     const imageFormData = new FormData();
     imageFormData.append('image', image);
 
@@ -25,12 +23,8 @@ export async function POST(req: Request) {
     });
     
     const didImageData = await didImageRes.json();
+    if (!didImageRes.ok) return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
 
-    if (!didImageRes.ok) {
-      return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
-    }
-
-    // --- 2. START THE VIDEO GENERATION ---
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
@@ -48,17 +42,12 @@ export async function POST(req: Request) {
     });
     
     const didVideoData = await didVideoRes.json();
-    
-    if (!didVideoRes.ok) {
-      return NextResponse.json({ error: JSON.stringify(didVideoData) }, { status: 400 });
-    }
+    if (!didVideoRes.ok) return NextResponse.json({ error: JSON.stringify(didVideoData) }, { status: 400 });
 
-    return NextResponse.json({ 
-      talkId: didVideoData.id, 
-      apiKey: rawKey // Send the clean key to the frontend
-    });
+    // Just return the ID. The frontend will use /api/status to check it.
+    return NextResponse.json({ talkId: didVideoData.id });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
   }
-                                                       }
+}
