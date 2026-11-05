@@ -23,10 +23,11 @@ export async function POST(req: Request) {
     const didImageData = await didImageRes.json();
 
     if (!didImageRes.ok) {
-      throw new Error(didImageData.description || 'Image upload failed. Check D-ID credits/keys.');
+      // Return exact D-ID image upload error
+      return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
     }
 
-    // --- 2. TELL D-ID TO MAKE THE VIDEO (Using D-ID's built-in text-to-speech) ---
+    // --- 2. TELL D-ID TO MAKE THE VIDEO ---
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
@@ -47,13 +48,16 @@ export async function POST(req: Request) {
     });
     
     const didVideoData = await didVideoRes.json();
-    if (!didVideoRes.ok) throw new Error(didVideoData.description || 'D-ID Video Error');
+    
+    if (!didVideoRes.ok) {
+      // Return exact D-ID video creation error
+      return NextResponse.json({ error: JSON.stringify(didVideoData) }, { status: 400 });
+    }
 
     // --- 3. WAIT FOR VIDEO TO FINISH ---
     const talkId = didVideoData.id;
     let videoUrl = '';
     
-    // We check the status every 3 seconds
     while (true) {
       await new Promise(resolve => setTimeout(resolve, 3000)); 
       
@@ -66,14 +70,13 @@ export async function POST(req: Request) {
         videoUrl = statusData.result_url;
         break;
       } else if (statusData.status === 'error') {
-        throw new Error('Video generation failed during processing.');
+        return NextResponse.json({ error: JSON.stringify(statusData) }, { status: 400 });
       }
     }
 
     return NextResponse.json({ url: videoUrl });
 
   } catch (error: any) {
-    // This will send the specific error back to the app screen
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Unknown error occurred' }, { status: 500 });
   }
-              }
+      }
