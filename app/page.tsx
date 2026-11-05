@@ -17,7 +17,7 @@ export default function Home() {
     formData.append('script', script);
 
     try {
-      // 1. Send image and text to our API
+      // 1. Start the job
       const res = await fetch('/api/generate', {
         method: 'POST',
         body: formData,
@@ -30,18 +30,12 @@ export default function Home() {
         return;
       }
 
-      // 2. If we got the Talk ID, poll D-ID directly from the browser
-      const { talkId, apiKey } = data;
-      
-      // Wait 5 seconds before checking the first time
-      await new Promise(r => setTimeout(r, 5000));
+      const { talkId } = data;
+      await new Promise(r => setTimeout(r, 5000)); // Wait 5s before first check
 
+      // 2. Check our OWN API for the status
       while (true) {
-        const statusRes = await fetch(`https://api.d-id.com/talks/${talkId}`, {
-          headers: {
-            Authorization: `Basic ${btoa(apiKey)}`
-          }
-        });
+        const statusRes = await fetch(`/api/status?talkId=${talkId}`);
         const statusData = await statusRes.json();
 
         if (statusData.status === 'done') {
@@ -52,11 +46,11 @@ export default function Home() {
           break;
         }
         
-        // Wait 3 seconds before checking again
+        // Wait 3 seconds before asking again
         await new Promise(r => setTimeout(r, 3000));
       }
     } catch (err) {
-      alert('Something went wrong. Check console.');
+      alert('Something went wrong. The connection dropped.');
     }
     setLoading(false);
   };
@@ -100,4 +94,4 @@ export default function Home() {
       )}
     </main>
   );
-    }
+        }
