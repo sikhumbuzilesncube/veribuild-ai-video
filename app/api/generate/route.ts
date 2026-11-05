@@ -10,8 +10,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing image or script' }, { status: 400 });
     }
 
-    const apiKey = process.env.DID_API_KEY || '';
-    const authHeader = `Basic ${Buffer.from(apiKey).toString('base64')}`;
+    // Clean the API key (removes any accidental spaces or "Basic " prefixes)
+    const rawKey = (process.env.DID_API_KEY || '').trim().replace(/^Basic\s+/i, '');
+    const authHeader = `Basic ${Buffer.from(rawKey).toString('base64')}`;
 
     // --- 1. UPLOAD IMAGE TO D-ID ---
     const imageFormData = new FormData();
@@ -52,13 +53,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: JSON.stringify(didVideoData) }, { status: 400 });
     }
 
-    // Immediately return the ID and the API key so the frontend can check the status
     return NextResponse.json({ 
       talkId: didVideoData.id, 
-      apiKey: apiKey 
+      apiKey: rawKey // Send the clean key to the frontend
     });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
   }
-        }
+                                                       }
