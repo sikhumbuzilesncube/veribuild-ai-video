@@ -10,20 +10,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing image or script' }, { status: 400 });
     }
 
+    // Safely format the API key for D-ID
+    const apiKey = process.env.DID_API_KEY || '';
+    const authHeader = `Basic ${Buffer.from(apiKey).toString('base64')}`;
+
     // --- 1. UPLOAD IMAGE TO D-ID ---
     const imageFormData = new FormData();
     imageFormData.append('image', image);
 
     const didImageRes = await fetch('https://api.d-id.com/images', {
       method: 'POST',
-      headers: { Authorization: `Basic ${process.env.DID_API_KEY}` },
+      headers: { Authorization: authHeader },
       body: imageFormData,
     });
     
     const didImageData = await didImageRes.json();
 
     if (!didImageRes.ok) {
-      // Return exact D-ID image upload error
       return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
     }
 
@@ -31,7 +34,7 @@ export async function POST(req: Request) {
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
-        Authorization: `Basic ${process.env.DID_API_KEY}`,
+        Authorization: authHeader,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -50,7 +53,6 @@ export async function POST(req: Request) {
     const didVideoData = await didVideoRes.json();
     
     if (!didVideoRes.ok) {
-      // Return exact D-ID video creation error
       return NextResponse.json({ error: JSON.stringify(didVideoData) }, { status: 400 });
     }
 
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
       await new Promise(resolve => setTimeout(resolve, 3000)); 
       
       const statusRes = await fetch(`https://api.d-id.com/talks/${talkId}`, {
-        headers: { Authorization: `Basic ${process.env.DID_API_KEY}` },
+        headers: { Authorization: authHeader },
       });
       const statusData = await statusRes.json();
       
@@ -79,4 +81,4 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Unknown error occurred' }, { status: 500 });
   }
-      }
+                                    }
