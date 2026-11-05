@@ -10,7 +10,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing image or script' }, { status: 400 });
     }
 
-    // Safely format the API key for D-ID
     const apiKey = process.env.DID_API_KEY || '';
     const authHeader = `Basic ${Buffer.from(apiKey).toString('base64')}`;
 
@@ -30,7 +29,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
     }
 
-    // --- 2. TELL D-ID TO MAKE THE VIDEO ---
+    // --- 2. START THE VIDEO GENERATION ---
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
@@ -42,10 +41,7 @@ export async function POST(req: Request) {
         script: {
           type: 'text', 
           input: scriptText,
-          provider: {
-            type: 'microsoft',
-            voice_id: 'en-US-JennyNeural' 
-          }
+          provider: { type: 'microsoft', voice_id: 'en-US-JennyNeural' }
         },
       }),
     });
@@ -56,29 +52,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: JSON.stringify(didVideoData) }, { status: 400 });
     }
 
-    // --- 3. WAIT FOR VIDEO TO FINISH ---
-    const talkId = didVideoData.id;
-    let videoUrl = '';
-    
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, 3000)); 
-      
-      const statusRes = await fetch(`https://api.d-id.com/talks/${talkId}`, {
-        headers: { Authorization: authHeader },
-      });
-      const statusData = await statusRes.json();
-      
-      if (statusData.status === 'done') {
-        videoUrl = statusData.result_url;
-        break;
-      } else if (statusData.status === 'error') {
-        return NextResponse.json({ error: JSON.stringify(statusData) }, { status: 400 });
-      }
-    }
-
-    return NextResponse.json({ url: videoUrl });
+    // Immediately return the ID and the API key so the frontend can check the status
+    return NextResponse.json({ 
+      talkId: didVideoData.id, 
+      apiKey: apiKey 
+    });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Unknown error occurred' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
   }
-                                    }
+        }
