@@ -17,18 +17,46 @@ export default function Home() {
     formData.append('script', script);
 
     try {
+      // 1. Send image and text to our API
       const res = await fetch('/api/generate', {
         method: 'POST',
         body: formData,
       });
       const data = await res.json();
-      if (data.url) {
-        setVideoUrl(data.url);
-      } else {
+      
+      if (data.error) {
         alert('Error: ' + data.error);
+        setLoading(false);
+        return;
+      }
+
+      // 2. If we got the Talk ID, poll D-ID directly from the browser
+      const { talkId, apiKey } = data;
+      
+      // Wait 5 seconds before checking the first time
+      await new Promise(r => setTimeout(r, 5000));
+
+      while (true) {
+        const statusRes = await fetch(`https://api.d-id.com/talks/${talkId}`, {
+          headers: {
+            Authorization: `Basic ${btoa(apiKey)}`
+          }
+        });
+        const statusData = await statusRes.json();
+
+        if (statusData.status === 'done') {
+          setVideoUrl(statusData.result_url);
+          break;
+        } else if (statusData.status === 'error') {
+          alert('Video generation failed during processing.');
+          break;
+        }
+        
+        // Wait 3 seconds before checking again
+        await new Promise(r => setTimeout(r, 3000));
       }
     } catch (err) {
-      alert('Something went wrong.');
+      alert('Something went wrong. Check console.');
     }
     setLoading(false);
   };
@@ -39,7 +67,7 @@ export default function Home() {
       
       <div style={{ marginBottom: '20px' }}>
         <label><strong>1. Upload Image:</strong></label><br/>
-        <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] || null)} style={{ marginTop: '5px' }} />
+        <input type="file" accept="image/jpeg, image/png" onChange={(e) => setImage(e.target.files?.[0] || null)} style={{ marginTop: '5px' }} />
       </div>
 
       <div style={{ marginBottom: '20px' }}>
@@ -58,7 +86,7 @@ export default function Home() {
         disabled={loading}
         style={{ padding: '15px 20px', background: '#f97316', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', width: '100%', fontSize: '16px', fontWeight: 'bold' }}
       >
-        {loading ? 'Generating... (Takes ~30s)' : 'Generate Video'}
+        {loading ? 'Generating... (Checking Status)' : 'Generate Video'}
       </button>
 
       {videoUrl && (
@@ -72,4 +100,4 @@ export default function Home() {
       )}
     </main>
   );
-          }
+    }
