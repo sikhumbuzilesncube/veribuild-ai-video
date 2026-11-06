@@ -10,41 +10,66 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing image or script' }, { status: 400 });
     }
 
-    const rawKey = (process.env.DID_API_KEY || '').trim().replace(/^Basic\s+/i, '');
-    const authHeader = `Basic ${Buffer.from(rawKey).toString('base64')}`;
+    const rawDidKey = (process.env.DID_API_KEY || '').trim().replace(/^Basic\s+/i, '');
+    const didAuthHeader = `Basic ${Buffer.from(rawDidKey).toString('base64')}`;
+    const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
 
+    // 1. GENERATE VOICE WITH ELEVENLABS
+    // PASTE YOUR CLONED VOICE ID HERE (replace the one below)
+    const voiceId = 'YOUR_ELEVENLABS_VOICE_ID_HERE'; 
+    
+    const voiceRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': elevenLabsKey as string,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: scriptText,
+        model_id: 'eleven_multilingual_v2', // Best for African languages
+      }),
+    });
+
+    if (!voiceRes.ok) throw new Error('ElevenLabs voice generation failed. Check credits or Voice ID.');
+    const voiceBlob = await voiceRes.blob();
+
+    // 2. UPLOAD AUDIO TO D-ID
+    const audioFormData = new FormData();
+    audioFormData.append('audio', voiceBlob, 'audio.mp3');
+    const didAudioRes = await fetch('https://api.d-id.com/audios', {
+      method: 'POST',
+      headers: { Authorization: didAuthHeader },
+      body: audioFormData,
+    });
+    const didAudioData = await didAudioRes.json();
+    if (!didAudioRes.ok) return NextResponse.json({ error: JSON.stringify(didAudioData) }, { status: 400 });
+
+    // 3. UPLOAD IMAGE TO D-ID
     const imageFormData = new FormData();
     imageFormData.append('image', image);
-
     const didImageRes = await fetch('https://api.d-id.com/images', {
       method: 'POST',
-      headers: { Authorization: authHeader },
+      headers: { Authorization: didAuthHeader },
       body: imageFormData,
     });
-    
     const didImageData = await didImageRes.json();
     if (!didImageRes.ok) return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
 
-    // --- CREATE THE VIDEO WITH FULL IMAGE VISIBLE ---
+    // 4. CREATE THE VIDEO (Full flyer + Ndebele Audio)
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
-        Authorization: authHeader,
+        Authorization: didAuthHeader,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         source_url: didImageData.url,
         script: {
-          type: 'text', 
-          input: scriptText,
-          provider: { 
-            type: 'microsoft', 
-            voice_id: 'en-US-AndrewNeural' // A much more natural, expressive male voice
-          }
+          type: 'audio',
+          audio_url: didAudioData.url,
         },
-        // THESE SETTINGS KEEP THE FULL FLIER VISIBLE
         config: {
-          stitch: true, // Prevents D-ID from cropping the image
+          stitch: true, // Keeps the full flyer visible
         }
       }),
     });
