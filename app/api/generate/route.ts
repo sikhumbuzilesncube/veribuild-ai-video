@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     const didImageData = await didImageRes.json();
     if (!didImageRes.ok) return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
 
+    // --- CREATE THE VIDEO WITH FULL IMAGE VISIBLE ---
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
@@ -36,18 +37,24 @@ export async function POST(req: Request) {
         script: {
           type: 'text', 
           input: scriptText,
-          provider: { type: 'microsoft', voice_id: 'en-US-JennyNeural' }
+          provider: { 
+            type: 'microsoft', 
+            voice_id: 'en-US-AndrewNeural' // A much more natural, expressive male voice
+          }
         },
+        // THESE SETTINGS KEEP THE FULL FLIER VISIBLE
+        config: {
+          stitch: true, // Prevents D-ID from cropping the image
+        }
       }),
     });
     
     const didVideoData = await didVideoRes.json();
     if (!didVideoRes.ok) return NextResponse.json({ error: JSON.stringify(didVideoData) }, { status: 400 });
 
-    // Just return the ID. The frontend will use /api/status to check it.
     return NextResponse.json({ talkId: didVideoData.id });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
   }
-}
+                                                   }
