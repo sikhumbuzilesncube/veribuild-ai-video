@@ -14,10 +14,12 @@ export async function POST(req: Request) {
     const didAuthHeader = `Basic ${Buffer.from(rawDidKey).toString('base64')}`;
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
 
-    // 1. GENERATE VOICE WITH ELEVENLABS
-    // PASTE YOUR CLONED VOICE ID HERE (replace the one below)
-    const voiceId = 'YOUR_ELEVENLABS_VOICE_ID_HERE'; 
+    // ==========================================
+    // 🚨 PASTE YOUR NDEBELE VOICE ID HERE 🚨
+    // ==========================================
+    const voiceId = 'PASTE_YOUR_VOICE_ID_HERE'; 
     
+    // 1. GENERATE VOICE WITH ELEVENLABS
     const voiceRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
@@ -30,7 +32,10 @@ export async function POST(req: Request) {
       }),
     });
 
-    if (!voiceRes.ok) throw new Error('ElevenLabs voice generation failed. Check credits or Voice ID.');
+    if (!voiceRes.ok) {
+      const err = await voiceRes.json();
+      return NextResponse.json({ error: 'ElevenLabs Error: ' + JSON.stringify(err) }, { status: 400 });
+    }
     const voiceBlob = await voiceRes.blob();
 
     // 2. UPLOAD AUDIO TO D-ID
