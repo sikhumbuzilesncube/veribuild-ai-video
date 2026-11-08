@@ -15,9 +15,9 @@ export async function POST(req: Request) {
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
 
     // ==========================================
-    // 🚨 PASTE YOUR NDEBELE VOICE ID HERE 🚨
+    // YOUR ZULU VOICE ID IS INSERTED HERE
     // ==========================================
-    const voiceId = 'PASTE_YOUR_VOICE_ID_HERE'; 
+    const voiceId = 'NGih2hqfz38QaJFfvzcn'; 
     
     // 1. GENERATE VOICE WITH ELEVENLABS
     const voiceRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     const didImageData = await didImageRes.json();
     if (!didImageRes.ok) return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
 
-    // 4. CREATE THE VIDEO (Full flyer + Ndebele Audio)
+    // 4. CREATE THE VIDEO (Full flyer + Zulu Audio)
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
@@ -87,4 +87,4 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
   }
-}
+        }
