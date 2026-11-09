@@ -13,11 +13,7 @@ export async function POST(req: Request) {
     const rawDidKey = (process.env.DID_API_KEY || '').trim().replace(/^Basic\s+/i, '');
     const didAuthHeader = `Basic ${Buffer.from(rawDidKey).toString('base64')}`;
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
-
-    // ==========================================
-    // YOUR ZULU VOICE ID IS INSERTED HERE
-    // ==========================================
-    const voiceId = 'NGih2hqfz38QaJFfvzcn'; 
+    const voiceId = 'NGih2hqfz38QaJFfvzcn'; // Your Zulu Voice ID
     
     // 1. GENERATE VOICE WITH ELEVENLABS
     const voiceRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -28,7 +24,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         text: scriptText,
-        model_id: 'eleven_multilingual_v2', // Best for African languages
+        model_id: 'eleven_multilingual_v2',
       }),
     });
 
@@ -60,7 +56,7 @@ export async function POST(req: Request) {
     const didImageData = await didImageRes.json();
     if (!didImageRes.ok) return NextResponse.json({ error: JSON.stringify(didImageData) }, { status: 400 });
 
-    // 4. CREATE THE VIDEO (Full flyer + Zulu Audio)
+    // 4. CREATE THE VIDEO (Removed 'stitch' for faster processing)
     const didVideoRes = await fetch('https://api.d-id.com/talks', {
       method: 'POST',
       headers: {
@@ -74,7 +70,7 @@ export async function POST(req: Request) {
           audio_url: didAudioData.url,
         },
         config: {
-          stitch: true, // Keeps the full flyer visible
+          result_format: 'mp4' // Helps speed up processing
         }
       }),
     });
