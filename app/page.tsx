@@ -5,7 +5,7 @@ export default function Home() {
   const [image, setImage] = useState<File | null>(null);
   const [script, setScript] = useState('');
   const [loading, setLoading] = useState(false);
-  const [statusText, setStatusText] = useState(''); // Shows what is happening
+  const [statusText, setStatusText] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
 
   const handleGenerate = async () => {
@@ -20,7 +20,6 @@ export default function Home() {
     formData.append('script', script);
 
     try {
-      // 1. Start the job
       const res = await fetch('/api/generate', {
         method: 'POST',
         body: formData,
@@ -36,14 +35,13 @@ export default function Home() {
       }
 
       const { talkId } = data;
-      setStatusText('Waiting for D-ID to process... (This takes ~30-60s)');
+      setStatusText('Waiting for D-ID to process... (This takes ~30-90s)');
 
       let attempts = 0;
-      const maxAttempts = 30; // 30 attempts * 3 seconds = 90 seconds max
+      const maxAttempts = 50; // 50 attempts * 3 seconds = 150 seconds max
 
-      // 2. Check our OWN API for the status
       while (attempts < maxAttempts) {
-        await new Promise(r => setTimeout(r, 3000)); // Wait 3s
+        await new Promise(r => setTimeout(r, 3000)); 
         attempts++;
 
         try {
@@ -61,13 +59,11 @@ export default function Home() {
             setStatusText('');
             return;
           }
-          // If it's 'created' or 'started', keep looping
         } catch (pollError) {
           console.log('Polling error, retrying...', pollError);
         }
       }
 
-      // If we reach here, it timed out
       alert('Timeout: D-ID took too long to make the video. Please try again.');
       setLoading(false);
       setStatusText('');
@@ -108,7 +104,6 @@ export default function Home() {
         {loading ? 'Processing...' : 'Generate Video'}
       </button>
 
-      {/* Status Message */}
       {statusText && (
         <p style={{ textAlign: 'center', marginTop: '15px', color: '#555', fontStyle: 'italic' }}>
           {statusText}
@@ -126,4 +121,4 @@ export default function Home() {
       )}
     </main>
   );
-      }
+    }
